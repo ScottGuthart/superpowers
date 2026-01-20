@@ -88,7 +88,7 @@ curl -fsSL https://raw.githubusercontent.com/obra/superpowers/main/.pi/scripts/s
 Or tell pi:
 
 ```
-Fetch and follow instructions from https://raw.githubusercontent.com/obra/superpowers/refs/heads/main/.pi/INSTALL.md
+Fetch and follow instructions from https://raw.githubusercontent.com/scottguthart/superpowers/refs/heads/main/.pi/INSTALL.md
 ```
 
 **Detailed docs:** [docs/README.pi.md](docs/README.pi.md)
