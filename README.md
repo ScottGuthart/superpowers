@@ -26,7 +26,7 @@ Thanks!
 
 ## Installation
 
-**Note:** Installation differs by platform. Claude Code has a built-in plugin system. Codex and OpenCode require manual setup.
+**Note:** Installation differs by platform. Claude Code has a built-in plugin system. Codex, OpenCode, and pi coding agent require manual setup.
 
 ### Claude Code (via Plugin Marketplace)
 
@@ -76,6 +76,22 @@ Fetch and follow instructions from https://raw.githubusercontent.com/obra/superp
 ```
 
 **Detailed docs:** [docs/README.opencode.md](docs/README.opencode.md)
+
+### pi coding agent
+
+Run the setup script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/obra/superpowers/main/.pi/scripts/setup.sh | bash
+```
+
+Or tell pi:
+
+```
+Fetch and follow instructions from https://raw.githubusercontent.com/obra/superpowers/refs/heads/main/.pi/INSTALL.md
+```
+
+**Detailed docs:** [docs/README.pi.md](docs/README.pi.md)
 
 ## The Basic Workflow
 
