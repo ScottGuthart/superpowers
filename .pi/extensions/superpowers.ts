@@ -178,48 +178,32 @@ ${toolMapping}
     },
   });
 
-  // Bootstrap injection at session start
-  pi.on("session_start", async (event) => {
+  // Bootstrap injection at session start - send initial message
+  pi.on("session_start", async (event, ctx) => {
     const bootstrapContent = getBootstrapContent(false);
     if (!bootstrapContent) return;
 
-    // Insert bootstrap as a custom entry visible to LLM
-    // This will be part of the conversation context
     try {
-      const session = pi.sessionManager.getActiveSession();
-      if (session) {
-        // Add a custom message entry that the LLM will see
-        session.addEntry({
-          type: "custom_message",
-          role: "user",
-          content: bootstrapContent,
-          timestamp: Date.now(),
-        });
-      }
+      // Send bootstrap as a user message at the start of the session
+      // triggerTurn: false means it won't trigger the agent to respond
+      await pi.sendMessage(bootstrapContent, { triggerTurn: false });
     } catch (err) {
       console.error("Failed to inject superpowers bootstrap:", err);
     }
   });
 
-  // Re-inject compact bootstrap before context compaction
-  pi.on("session_before_compact", async (event) => {
+  // Inject into system prompt on every agent turn
+  // This ensures superpowers context is always available, even after context compaction
+  pi.on("before_agent_start", async (event, ctx) => {
+    // Use compact version to save tokens
+    // The compact version is smaller and contains just the essential info
     const bootstrapContent = getBootstrapContent(true);
     if (!bootstrapContent) return;
 
-    try {
-      const session = pi.sessionManager.getActiveSession();
-      if (session) {
-        // Add compact version before compaction
-        session.addEntry({
-          type: "custom_message",
-          role: "user",
-          content: bootstrapContent,
-          timestamp: Date.now(),
-        });
-      }
-    } catch (err) {
-      console.error("Failed to inject compact bootstrap:", err);
-    }
+    // Return systemPromptAppend to inject into the system prompt for this turn
+    return {
+      systemPromptAppend: bootstrapContent,
+    };
   });
 
   // Optional: Check for updates command
