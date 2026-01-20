@@ -12,7 +12,7 @@
 
 ```bash
 mkdir -p ~/.pi/agent/superpowers
-git clone https://github.com/obra/superpowers.git ~/.pi/agent/superpowers
+git clone https://github.com/scottguthart/superpowers.git ~/.pi/agent/superpowers
 ```
 
 ### 2. Register the Extension
