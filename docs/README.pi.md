@@ -53,8 +53,8 @@ The superpowers extension for pi (`/.pi/extensions/superpowers.ts`) provides:
    - `/superpowers_update` - Check for superpowers updates
 
 3. **Lifecycle Event Handlers**:
-   - `session_start` - Auto-inject bootstrap with full `using-superpowers` skill
-   - `session_before_compact` - Re-inject compact bootstrap to survive context compaction
+   - `session_start` - Inject initial bootstrap message into conversation
+   - `before_agent_start` - Inject compact bootstrap into system prompt on every turn (survives context compaction)
 
 ### Directory Structure
 
@@ -101,12 +101,27 @@ Skills can be loaded with explicit namespaces:
 
 ### Bootstrap Injection
 
-The extension automatically injects the `using-superpowers` skill at session start. This provides the agent with:
+The pi extension uses a **dual injection strategy** unique to pi's architecture:
+
+1. **Initial Message** (`session_start` event):
+   - Sends full bootstrap as a user message when session starts
+   - Makes superpowers visible in conversation history
+   - Uses `pi.sendMessage(content, { triggerTurn: false })`
+
+2. **System Prompt Injection** (`before_agent_start` event):
+   - Injects compact bootstrap into system prompt on **every turn**
+   - Ensures superpowers survives context compaction automatically
+   - Returns `{ systemPromptAppend: content }`
+   - More efficient than re-injecting messages after compaction
+
+This provides the agent with:
 - Overview of all available skills
 - Instructions on when and how to use skills
 - Tool mapping for pi-specific tools
 
 **Important**: The bootstrap is injected automatically - you don't need to manually load `using-superpowers`.
+
+**Why this works better on pi**: Unlike OpenCode/Codex which require re-injection after context compaction, pi's `before_agent_start` hook automatically includes the bootstrap in every LLM call's system prompt, making it immune to context compaction without any additional logic.
 
 ### Loading Skills
 
@@ -240,9 +255,19 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     name: "tool_name",
     description: "Tool description",
-    parameters: { /* schema */ },
+    parameters: {
+      type: "object",
+      properties: {
+        param_name: {
+          type: "string",
+          description: "Parameter description"
+        }
+      },
+      required: ["param_name"]
+    },
     async execute(toolCallId, params, onUpdate, ctx, signal) {
       // Implementation
+      return "Tool result string";
     }
   });
 
@@ -251,13 +276,30 @@ export default function (pi: ExtensionAPI) {
     name: "command_name",
     description: "Command description",
     handler: async (ctx) => {
-      // Implementation
+      // Access UI
+      ctx.ui.notify("Message", "info");
+
+      // Execute shell commands
+      const result = await ctx.exec("ls -la");
     }
   });
 
-  // Register event handlers
-  pi.on("session_start", async (event) => {
-    // Handler
+  // Inject content at session start
+  pi.on("session_start", async (event, ctx) => {
+    await pi.sendMessage("Initial context", { triggerTurn: false });
+  });
+
+  // Inject into system prompt on every turn
+  pi.on("before_agent_start", async (event, ctx) => {
+    return {
+      systemPromptAppend: "Persistent instructions for every turn",
+    };
+  });
+
+  // Persist state across sessions
+  pi.on("some_event", async (event, ctx) => {
+    // Store data (not visible to LLM)
+    await pi.appendEntry("my_extension_state", { key: "value" });
   });
 }
 ```
@@ -266,12 +308,40 @@ export default function (pi: ExtensionAPI) {
 
 The extension uses these pi lifecycle events:
 
-- `session_start` - Triggered when a new session begins
-- `session_before_compact` - Triggered before context compaction
-- `session_tree` - Available for session tree reconstruction
-- `session_fork` - Available for handling session branches
+- **`session_start`** - Triggered when a new session begins; used to inject initial bootstrap message
+- **`before_agent_start`** - Triggered before each agent turn starts; used to inject system prompt content
+- **`session_fork`** - Available for handling session branches
+- **`session_tree`** - Available for session tree reconstruction
+- **`context`** - Available for modifying messages before LLM calls
+- **`tool_call`** - Available for intercepting/blocking tool calls
+- **`tool_result`** - Available for modifying tool results
 
-See [pi coding agent docs](https://github.com/badlogic/pi-mono) for full event list.
+See [pi coding agent docs](https://github.com/badlogic/pi-mono) for the complete list of 20+ events.
+
+### Event Handler Return Values
+
+Event handlers can return objects to modify behavior:
+
+```typescript
+// Inject into system prompt on every turn
+pi.on("before_agent_start", async (event, ctx) => {
+  return {
+    systemPromptAppend: "Your custom instructions here",
+  };
+});
+
+// Send messages during events
+pi.on("session_start", async (event, ctx) => {
+  await pi.sendMessage("Bootstrap content", { triggerTurn: false });
+});
+
+// Block or modify tool calls
+pi.on("tool_call", async (event, ctx) => {
+  if (event.toolName === "dangerous_tool") {
+    return { block: true, reason: "Tool blocked by policy" };
+  }
+});
+```
 
 ### Shared Core Library
 
